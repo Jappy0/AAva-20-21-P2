@@ -17,22 +17,18 @@
 #define false 0
 
 
-int* e;                          /* For implicit extensions*/ 
-char** Ti;                       /*List of all strings.*/
-int* ni;                         /*List of sizes of all strings*/
-
-
 /* -----------------------NODE STRUCT----------------------- */
 
 typedef struct node* node;
 struct node{
-    int Ti;                       /**< The value of i in Ti */
-    int head;                     /**< The path-label startat &(Ti[head]) */
-    int sdep;                     /**< String-Depth */
-    node child;                   /**< Child */
-    node brother;                 /**< brother */
-    node slink;                   /**< Suffix link */
-    node* hook;                   /**< What keeps this linked? */
+    int id;                       /* Node's id*/
+    int Ti;                       /* The value of i in Ti */
+    int head;                     /* The path-label startat &(Ti[head]) */
+    int sdep;                     /* String-Depth */
+    node child;                   /* Child */
+    node brother;                 /* brother */
+    node slink;                   /* Suffix link */
+    node* hook;                   /* What keeps this linked? */
 };
 
 /* -----------------------POINT STRUCT---------------------- */
@@ -43,6 +39,14 @@ struct point{
     int s;                        /**< String-Depth */
 };
 
+/* ----------------------Global Variables--------------------- */
+
+int* e;                          /* For implicit extensions*/ 
+char** Ti;                       /* List of all strings.*/
+int* ni;                         /* List of sizes of all strings*/
+node* nodes;                     /* List of all our nodes*/
+int numNodes;                    /* Number of nodes*/
+
 /* --------------------------------------------------------- */
 char* saveNewString(char *S, int *S_cap, int *S_size);
 int DescendQ(point p, int i, int j);
@@ -50,8 +54,9 @@ void Descend(point p, int i, int j);
 void AddLeaf(point p, int i, int j);
 void SuffixLink(point p);
 node Ukkonnen(int k, char** Ti, int* ni);
-void Naive(int k, char** Ti, int* ni);
 void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook);
+void DFS(int* visited, node root);
+void printTree(node root);
 
 /* --------------------------------------------------------- */
 
@@ -75,6 +80,7 @@ int main(int argc, char *argv[]){
     }
 
     node suffix_tree_root = Ukkonnen(k, Ti, ni);
+    printTree(suffix_tree_root);
 
     return 0;
 }
@@ -106,11 +112,11 @@ char* saveNewString(char *S, int *S_cap, int *S_size){
 
 node Ukkonnen(int k, char** Ti, int* ni){
     int i = 0;
-
     /* The only thing that the root node needs is the child node and eventually its string depth*/
     node root; 
     root = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
-
+    root ->id = 0;
+    numNodes ++;
     /*while(i < k){
         Ti[i][ni[i]] = '\1';      
         int j = 0;
@@ -201,10 +207,11 @@ void Descend(point p, int i, int j){
     It might also be necessary to create a new internal node.
 */
 void AddLeaf(point p, int i, int j){
-    
+
     node leaf; /* Our new leaf node*/
     leaf = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
-
+    leaf->id = numNodes;
+    numNodes ++;
    /* Case 1) Need to add only a leaf */
    if( p->s == 0){
        
@@ -222,6 +229,9 @@ void AddLeaf(point p, int i, int j){
     else{
         node internal; /* Our internal node*/
         internal = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
+        internal->id = numNodes;
+        numNodes++;
+        internal->Ti = i;
 
         p->a->child = internal;
         internal->child = p->b;
@@ -243,4 +253,36 @@ void setNode(node n, int Ti, int head, int sdep, node child, node brother, node 
     n->child = child;
     n->brother = brother;
     n->hook = hook;
+}
+
+void printTree(node root){
+    /*---- Initializing the visited list for DFS --------*/
+    int visited[numNodes];
+    int i;
+    for(i=0; i<numNodes; i++){
+        visited[i] = 0;
+    }
+
+    printf("digraph g {\n");
+    DFS(visited, root);
+    printf("}");
+}
+
+void DFS(int* visited, node root){
+
+    visited[root->id] = 1;
+    node node_visited = root;
+    node next;
+    
+    if (node_visited->child !=NULL){
+        printf("\t%d -> %d [label=\"%s\"]\n", node_visited->id, node_visited->child->id, "edge label");
+        DFS(visited, node_visited->child);
+    }
+    
+    next = node_visited ->brother;
+    while (next != NULL){
+        printf("\t%d -> %d [label=\"%s\"]\n", node_visited->id, next->id, "edge label");
+        DFS(visited, next);
+        next = next->brother;
+    }
 }
