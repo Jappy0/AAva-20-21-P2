@@ -1,5 +1,5 @@
-/* ------------ Advanced Algorithms 2020/2021 ------------*/
-/* ------------ Project 2 - Suffix Trees --------------*/
+/* ------------ Advanced Algorithms 2020/2021 ---------------*/
+/* ------------ Project 2 - Suffix Trees --------------------*/
 
 /* Andreia Pereira  | n. 89414 */
 /* Pedro Nunes      | n. 89525 */
@@ -49,7 +49,6 @@ int numNodes;                    /* Number of nodes*/
 node lastNewNode;                /* Last internal node. This will be used to set suffix links*/
 
 /* --------------------------------------------------------- */
-char* saveNewString(char *S, int *S_cap, int *S_size);
 int DescendQ(point p, int i, int j);
 void Descend(point p, int i, int j);
 void AddLeaf(node root, point p, int i, int j);
@@ -86,31 +85,6 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-char* saveNewString(char *S, int *S_cap, int *S_size){
-    char c;
-    int n;
-    c = getchar(); /*Space char*/
-
-    if (c == ' '){
-        n = 0;
-        c = getchar();
-        while (c != '\n'){
-            if( (n+1) == *S_cap){
-                //S = increaseMemory(S, S_cap);
-            }
-            S[n] = c;
-            n++;
-            c = getchar();  
-        }
-        S[n] = '\0';
-        *S_size = n;  
-    }
-    else{
-        printf("Bad command format\n");
-    }
-    return S;
-}
-
 node Ukkonnen(int k, char** Ti, int* ni){
     int i = 0;
 
@@ -127,6 +101,7 @@ node Ukkonnen(int k, char** Ti, int* ni){
     root ->slink = sentinel;
     numNodes ++;
 
+    sentinel->child = root;
     
     /* Initializing point*/
     point p;
@@ -200,13 +175,20 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
     char edgeChar;
     int edgePos;
     newChar = Ti[i][j];
+
+    /* Case 1) We're in the sentinel/root */
+    if(p->a->id == -1){
+        p->a = p->a->child; /* We want p to point to the root, and then go to Case 3)*/
+        p->s = 0;
+        p->b = NULL;
+    }
     
-    /* Case 1) We're in a edge*/
+    /* Case 2) We're in a edge*/
     if( p->s > p->a->sdep ){
         p->s ++;
     }
 
-    /* Case 2) We're in a internal node
+    /* Case 3) We're in a internal node
         - We need to try all possible edges, traversing p->a->child and so on*/
     else{
         node next;
@@ -260,7 +242,7 @@ void AddLeaf(node root, point p, int i, int j){
 
         p->a->child = internal;
         internal->child = p->b;
-        internal->brother = leaf;
+        internal->brother = leaf; /*TODO: this is wrong i guess*/
 
         internal->head = p->a->head;
         leaf->head = j - p->s;
@@ -277,16 +259,38 @@ void AddLeaf(node root, point p, int i, int j){
 }
 
 void SuffixLink(point p, int i, int j){
+    
+    int travelSize; /* Number of chars we need to pass when walking up the edge to p->above*/
+    char c;
+    int iterS; /* This will iterate Text i*/
+    int iterE; /* This will iterate the edges*/
+    iterE = 0;
+    node next;
+
     p->s--;
     p->a = p->a->slink;
 
-    int char_to_travel; /* Number of chars we need to pass when walking up the edge to p->above*/
-    char_to_travel = p->s - p->a->sdep;
+    travelSize = p->s - p->a->sdep;
+    next = p->a->child;
 
 
-    
-    
+    /*Going down the tree to place p in its right place*/
+    while(next != NULL){
+        for (iterS = j-travelSize; iterS<j; iterS++){
+
+            c = Ti[i][ next->head + p->a->sdep + iterE]; /*Edge - char being evaluated*/
+            if(c != Ti[i][iterS]){
+                iterE = 0;
+                break;
+            }
+            else{
+                iterE++;
+            }
+        }
+        next = next->brother;
+    }
 }
+
 
 void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook){
     n->Ti = Ti;
