@@ -46,13 +46,14 @@ char** Ti;                       /* List of all strings.*/
 int* ni;                         /* List of sizes of all strings*/
 node* nodes;                     /* List of all our nodes*/
 int numNodes;                    /* Number of nodes*/
+node lastNewNode;                /* Last internal node. This will be used to set suffix links*/
 
 /* --------------------------------------------------------- */
 char* saveNewString(char *S, int *S_cap, int *S_size);
 int DescendQ(point p, int i, int j);
 void Descend(point p, int i, int j);
-void AddLeaf(point p, int i, int j);
-void SuffixLink(point p);
+void AddLeaf(node root, point p, int i, int j);
+void SuffixLink(point p, int i, int j);
 node Ukkonnen(int k, char** Ti, int* ni);
 void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook);
 void DFS(int* visited, node root);
@@ -112,25 +113,44 @@ char* saveNewString(char *S, int *S_cap, int *S_size){
 
 node Ukkonnen(int k, char** Ti, int* ni){
     int i = 0;
-    /* The only thing that the root node needs is the child node and eventually its string depth*/
+
+    /* Initializing sentinel*/
+    node sentinel; 
+    sentinel = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    sentinel ->id = -1;
+    sentinel ->slink = NULL;
+
+    /* Initializing root*/
     node root; 
     root = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
     root ->id = 0;
+    root ->slink = sentinel;
     numNodes ++;
-    /*while(i < k){
+
+    
+    /* Initializing point*/
+    point p;
+    p = (point)malloc(sizeof(struct point));
+    p->a = root;
+    p->s = 0;
+
+    while(i < k){
         Ti[i][ni[i]] = '\1';      
         int j = 0;
         e = 0;
         while(j <= ni[i]){
-            while(!DescendQ(p, Ti[i][j])){
-                AddLeaf(p, i, j);
-                SuffixLink(p);
+            lastNewNode = NULL;
+            while(!DescendQ(p, i, j)){
+                AddLeaf(root, p, i, j);
+                SuffixLink(p,i,j);
             }
-            Descend(p, Ti[i][j]);j++;}
+            Descend(p, i, j);
+            j++;
+        }
 
         Ti[i][ni[i]] = '\0';
         i++;
-    } */
+    } 
     return root;   
 }
 
@@ -140,7 +160,12 @@ int DescendQ(point p, int i, int j){
     int edgePos;
     newChar = Ti[i][j];
     
-    /* Case 1) We're in a edge*/
+    /* Case 1) We're at the sentinel node*/
+    if(p->a->id == -1){
+        return 1;
+    }
+
+    /* Case 2) We're in a edge*/
     if( p->s > p->a->sdep ){
         edgePos = p->b->head + p->s;
 
@@ -151,7 +176,7 @@ int DescendQ(point p, int i, int j){
         }
     }
 
-    /* Case 2) We're in a internal node
+    /* Case 3) We're in a internal node
         - We need to try all possible edges, traversing p->a->child and so on*/
     else{
         node next;
@@ -166,11 +191,11 @@ int DescendQ(point p, int i, int j){
             }
             next = next->brother;
         }
-    }    
+    } 
     return 0;
 }
 
-void Descend(point p, int i, int j){
+void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
     char newChar;
     char edgeChar;
     int edgePos;
@@ -206,7 +231,7 @@ void Descend(point p, int i, int j){
     Creates a new leaf and inserts it into the tree
     It might also be necessary to create a new internal node.
 */
-void AddLeaf(point p, int i, int j){
+void AddLeaf(node root, point p, int i, int j){
 
     node leaf; /* Our new leaf node*/
     leaf = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
@@ -243,7 +268,24 @@ void AddLeaf(point p, int i, int j){
         internal->sdep= p->a->sdep + p->s;
         leaf->sdep = *e - leaf-> head;
 
+        internal->slink = root; /* By default, any new internal node has its slink to root. This might change in future iterations*/ 
+        if(lastNewNode != NULL){
+            lastNewNode->slink = internal;
+        }
+        lastNewNode = internal;
     }
+}
+
+void SuffixLink(point p, int i, int j){
+    p->s--;
+    p->a = p->a->slink;
+
+    int char_to_travel; /* Number of chars we need to pass when walking up the edge to p->above*/
+    char_to_travel = p->s - p->a->sdep;
+
+
+    
+    
 }
 
 void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook){
