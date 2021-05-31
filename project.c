@@ -219,16 +219,36 @@ void AddLeaf(node root, point p, int i, int j){
     leaf = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
     leaf->id = numNodes;
     numNodes ++;
-   /* Case 1) Need to add only a leaf */
-   if( p->s == 0){
-       
-        p->a->child = leaf;
 
+   /* Case 1) Need to add only a leaf */
+   if( p->s == p->a->sdep){
+       
+        node next;
+        next = p->a->child;
+
+        if (next == NULL){
+            p->a->child = leaf;
+            leaf->hook = &(p->a->child);
+
+        }
+        else{
+            int foundLastChild;
+            foundLastChild = 0;
+            while( foundLastChild == 0){
+                if(next->brother == NULL){
+                    next->brother = leaf;
+                    leaf->hook = &(next->brother);
+                    foundLastChild = 1;
+                }
+                next = next->brother;
+            }
+           
+        }
         leaf->head = j - p->a->sdep;
         leaf->sdep = *e - leaf-> head;
 
         leaf->Ti = i;
-        leaf->hook = &(p->a->child);
+        
    }
     
 
@@ -240,9 +260,15 @@ void AddLeaf(node root, point p, int i, int j){
         numNodes++;
         internal->Ti = i;
 
-        p->a->child = internal;
+        *(p->b->hook) = internal; 
+        internal->brother = p->b->brother;
+        p->b->brother->hook = &(internal->brother);
+
         internal->child = p->b;
-        internal->brother = leaf; /*TODO: this is wrong i guess*/
+        p->b->hook = &(internal->child);
+
+        p->b->brother = leaf;
+        leaf->hook = &(p->b->brother);
 
         internal->head = p->a->head;
         leaf->head = j - p->s;
