@@ -52,7 +52,7 @@ void Descend(point p, int i, int j);
 void AddLeaf(node root, point p, int i, int j);
 void SuffixLink(point p, int i, int j);
 node Ukkonnen(int k);
-void DFS(int* visited, node root);
+void DFS(FILE *f, int* visited, node root);
 void printTree(node root);
 void allocateNodeMemory(int textSize );
 void cleanUp(int k);
@@ -82,8 +82,7 @@ int main(int argc, char *argv[]){
     allocateNodeMemory(textSize);
     numNodes = 0;
     node suffix_tree_root = Ukkonnen(k);
-    printTree(suffix_tree_root);
-
+    
     cleanUp(k);
     return 0;
 }
@@ -172,6 +171,7 @@ node Ukkonnen(int k){
 
     free(sentinel);
     free(p);
+    printTree(root);
     return root;   
 }
 
@@ -244,7 +244,7 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
             p->b = NULL;
         }
         printf("\t\tp->a->id = %d\n", p->a->id);
-        printf("\t\tp->b->id = %d\n", p->b->id);
+        printf("\t\tp->b->id = %d\n", p->b == NULL? -1:p->b->id);
         printf("\t\tp->s = %d\n", p->s);
 
     }
@@ -324,6 +324,7 @@ void AddLeaf(node root, point p, int i, int j){
         }
         leaf->head = j - p->a->sdep;
         leaf->sdep = END;    /*e - leaf-> head;*/
+        printf("\t\tNode %d: head = %d , sdep = %d\n", leaf->id, leaf->head, leaf->sdep);
    }
     
 
@@ -358,7 +359,7 @@ void AddLeaf(node root, point p, int i, int j){
         internal->head = p->b->head; 
         leaf->head = j - p->s;
 
-        internal->sdep= p->a->sdep + p->s;
+        internal->sdep= p->s ;
         leaf->sdep = END;
 
         internal->slink = root; /* By default, any new internal node has its slink to root. This might change in future iterations*/ 
@@ -366,6 +367,8 @@ void AddLeaf(node root, point p, int i, int j){
             lastNewNode->slink = internal;
         }
         lastNewNode = internal;
+        printf("\t\tNode %d: head = %d , sdep = %d\n", internal->id, internal->head, internal->sdep);
+        printf("\t\tNode %d: head = %d , sdep = %d\n", leaf->id, leaf->head, leaf->sdep);
     }
 }
 
@@ -449,13 +452,15 @@ void printTree(node root){
     for(i=0; i<numNodes; i++){
         visited[i] = 0;
     }
-
-    printf("digraph g {\n");
-    DFS(visited, root);
-    printf("}\n");
+    FILE *f = fopen("tree.gv", "w");
+    fprintf(f, "digraph g {\n");
+    printf("Starting DFS: \n");
+    DFS(f, visited, root);
+    fprintf(f, "}\n");
+    fclose(f);
 }
 
-void DFS(int* visited, node root){
+void DFS(FILE *f, int* visited, node root){
 
     visited[root->id] = 1;
     node node_visited = root;
@@ -464,24 +469,28 @@ void DFS(int* visited, node root){
     next = node_visited->child;
 
     if(node_visited->brother !=NULL){
-        printf("\t%d -> %d [style=dotted]\n", node_visited->id, node_visited->brother->id);
+        fprintf(f, "\t%d -> %d [style=dotted]\n", node_visited->id, node_visited->brother->id);
     }
     
     while(next!= NULL){
 
         if(next->sdep == END){ 
-            next->sdep = ni[next->Ti] +1 - next->head;
+            next->sdep = ni[next->Ti] - next->head;
         }   
 
-        printf("\t%d -> %d [label=\"", node_visited->id, next->id);
+        fprintf(f, "\t%d -> %d [label=\"", node_visited->id, next->id);
+        /*printf("\tNode %d: head = %d , sdep = %d\n", node_visited->id, node_visited->head, node_visited->sdep);*/
         
-        for(i= next->head + node_visited->sdep; i< next->head + next->sdep; i++){
-            printf("%c", Ti[next->Ti][i]); 
+        for(i= next->head + node_visited->sdep; i< next->head + next->sdep; i++){ 
+            fprintf(f, "%c", Ti[next->Ti][i]); 
         }
-        /*if (Ti[next->Ti][i] == '\0') printf("$");*/
-        printf("\"]\n");
+        if (Ti[next->Ti][i] == '\0'){
+            fprintf(f, "$");
+        }
         
-        DFS(visited, next);
+        fprintf(f, "\"]\n");
+        
+        DFS(f, visited, next);
         next = next->brother;
     }
 }
