@@ -13,9 +13,7 @@
 /* --------------------------------------------------------- */
 
 #define TSIZE 64
-#define true 1
-#define false 0
-
+#define END -1
 
 /* -----------------------NODE STRUCT----------------------- */
 
@@ -41,7 +39,7 @@ struct point{
 
 /* ----------------------Global Variables--------------------- */
 
-int* e;                          /* For implicit extensions*/ 
+int e;                          /* For implicit extensions*/ 
 char** Ti;                       /* List of all strings.*/
 int* ni;                         /* List of sizes of all strings*/
 node* nodes;                     /* List of all our nodes*/
@@ -53,10 +51,11 @@ int DescendQ(point p, int i, int j);
 void Descend(point p, int i, int j);
 void AddLeaf(node root, point p, int i, int j);
 void SuffixLink(point p, int i, int j);
-node Ukkonnen(int k, char** Ti, int* ni);
-void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook);
+node Ukkonnen(int k);
 void DFS(int* visited, node root);
 void printTree(node root);
+void allocateNodeMemory(int textSize );
+void cleanUp(int k);
 
 /* --------------------------------------------------------- */
 
@@ -70,35 +69,72 @@ int main(int argc, char *argv[]){
 
     int i = 0;
     int m = 0;
+    int textSize = 0; 
     while(i < k){
         scanf("%d", &m);            /*Size of string i*/
         ni[i] = m;
-        char t[m+1];
-        scanf("%s", t);             /*Actual string i*/
-        Ti[i] = t;
+        Ti[i] = (char*)malloc(sizeof(char)* (m+1));
+        scanf("%s", Ti[i]);             /*Actual string i*/
         i++;
+        textSize += (m+1);
     }
 
-    node suffix_tree_root = Ukkonnen(k, Ti, ni);
+    allocateNodeMemory(textSize);
+    numNodes = 0;
+    node suffix_tree_root = Ukkonnen(k);
     printTree(suffix_tree_root);
 
+    cleanUp(k);
     return 0;
 }
 
-node Ukkonnen(int k, char** Ti, int* ni){
-    int i = 0;
+void allocateNodeMemory(int textSize ){
+    int maxNumNodes = 2*textSize +1;
+    int i;
+    nodes = (node*)malloc(sizeof(node)*maxNumNodes);
 
+}
+
+void cleanUp(int numStrings){
+    /* Free memory occupied by strings*/
+    int i;
+
+    for(i=0; i < numStrings; i++){
+        free(Ti[i]);
+    }
+    free(Ti);
+    free(ni);
+
+    /* Free memory occupied by nodes*/
+    for(i = 0; i<numNodes; i++){
+        if(nodes[i] != NULL){
+            free(nodes[i]);
+        }
+    }
+    free(nodes);
+}
+
+node Ukkonnen(int k){
+    printf("Ukkonen T[0][0] = %c\n", Ti[0][0]);
     /* Initializing sentinel*/
     node sentinel; 
     sentinel = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
     sentinel ->id = -1;
     sentinel ->slink = NULL;
+    sentinel ->head = -1;
+    sentinel ->sdep = -1;
+
 
     /* Initializing root*/
     node root; 
     root = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    nodes[numNodes] = root;
     root ->id = 0;
     root ->slink = sentinel;
+    root ->sdep = 0;
+    root ->head = 0;
+    root-> child = NULL;
+    root->brother = NULL;
     numNodes ++;
 
     sentinel->child = root;
@@ -108,24 +144,34 @@ node Ukkonnen(int k, char** Ti, int* ni){
     p = (point)malloc(sizeof(struct point));
     p->a = root;
     p->s = 0;
+    p->b = NULL;
+    int j = 0;
+    int l;
+    int i = 0;
 
     while(i < k){
         Ti[i][ni[i]] = '\1';      
-        int j = 0;
+        j = 0;
         e = 0;
+
         while(j <= ni[i]){
             lastNewNode = NULL;
+            printf("Phase %d: T[i][j]= %c\n", j, Ti[i][j]);            
             while(!DescendQ(p, i, j)){
                 AddLeaf(root, p, i, j);
                 SuffixLink(p,i,j);
             }
             Descend(p, i, j);
             j++;
+            e++;
         }
 
         Ti[i][ni[i]] = '\0';
         i++;
     } 
+
+    free(sentinel);
+    free(p);
     return root;   
 }
 
@@ -137,11 +183,13 @@ int DescendQ(point p, int i, int j){
     
     /* Case 1) We're at the sentinel node*/
     if(p->a->id == -1){
+        printf("\tDescendQ- Case 1\n");
         return 1;
     }
 
     /* Case 2) We're in a edge*/
     if( p->s > p->a->sdep ){
+        printf("\tDescendQ- Case 2: p->s= %d and p->a->sdep = %d\n", p->s, p->a->sdep);
         edgePos = p->b->head + p->s;
 
         if(edgePos < ni[i]){
@@ -154,6 +202,7 @@ int DescendQ(point p, int i, int j){
     /* Case 3) We're in a internal node
         - We need to try all possible edges, traversing p->a->child and so on*/
     else{
+        printf("\tDescendQ- Case 3\n");
         node next;
         next = p->a->child;
 
@@ -178,19 +227,32 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
 
     /* Case 1) We're in the sentinel/root */
     if(p->a->id == -1){
+        printf("\tDescend- Case 1\n");
         p->a = p->a->child; /* We want p to point to the root, and then go to Case 3)*/
         p->s = 0;
         p->b = NULL;
     }
     
     /* Case 2) We're in a edge*/
-    if( p->s > p->a->sdep ){
+    
+    else if( p->s > p->a->sdep ){
+        printf("\tDescend- Case 2\n");
         p->s ++;
+        if(p->s == p->b->sdep){
+            printf("\t\tUpdated p->a\n");
+            p->a = p->b;
+            p->b = NULL;
+        }
+        printf("\t\tp->a->id = %d\n", p->a->id);
+        printf("\t\tp->b->id = %d\n", p->b->id);
+        printf("\t\tp->s = %d\n", p->s);
+
     }
 
     /* Case 3) We're in a internal node
         - We need to try all possible edges, traversing p->a->child and so on*/
     else{
+        printf("\tDescend- Case 3: \n");
         node next;
         next = p->a->child;
 
@@ -201,11 +263,19 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
                 if(newChar == edgeChar){
                     p->b = next;
                     p->s ++;
+                    if(p->s == p->b->sdep){
+                        printf("\t\tUpdated p->a\n");
+                        p->a = p->b;
+                        p->b = NULL;
+                    }
                     break;
                 }
             }
             next = next->brother;
         }
+        printf("\t\tp->a->id = %d\n", p->a->id);
+        /*printf("\t\tp->b->id = %d\n", p->b->id);*/
+        printf("\t\tp->s = %d\n", p->s);
     }    
 }
 
@@ -214,14 +284,22 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
     It might also be necessary to create a new internal node.
 */
 void AddLeaf(node root, point p, int i, int j){
-
-    node leaf; /* Our new leaf node*/
-    leaf = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
+    /* Our new leaf node*/
+    node leaf; 
+    leaf = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    nodes[numNodes] = leaf;
     leaf->id = numNodes;
     numNodes ++;
 
+    leaf->child = NULL;
+    leaf->brother = NULL;
+    leaf->slink = NULL;
+    leaf->Ti = i; 
+
+
    /* Case 1) Need to add only a leaf */
    if( p->s == p->a->sdep){
+       printf("\tAddLeaf - Case 1\n");
        
         node next;
         next = p->a->child;
@@ -245,36 +323,43 @@ void AddLeaf(node root, point p, int i, int j){
            
         }
         leaf->head = j - p->a->sdep;
-        leaf->sdep = *e - leaf-> head;
-
-        leaf->Ti = i;
-        
+        leaf->sdep = END;    /*e - leaf-> head;*/
    }
     
 
    /* Case 2) Need to add internal node*/
     else{
+        printf("\tAddLeaf - Case 2\n");
         node internal; /* Our internal node*/
         internal = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
+        nodes[numNodes] = internal;
         internal->id = numNodes;
-        numNodes++;
         internal->Ti = i;
+        numNodes++;
 
+        printf("\t\tp->a->id = %d\n", p->a->id);
+        printf("\t\tp->b->id = %d\n", p->b->id);
+        
+        
         *(p->b->hook) = internal; 
-        internal->brother = p->b->brother;
-        p->b->brother->hook = &(internal->brother);
+        internal-> hook = p->b->hook;
 
+        internal->brother = p->b->brother;
+        if(p->b->brother != NULL){
+            p->b->brother->hook = &(internal->brother);
+        }
+    
         internal->child = p->b;
         p->b->hook = &(internal->child);
 
         p->b->brother = leaf;
         leaf->hook = &(p->b->brother);
 
-        internal->head = p->a->head;
+        internal->head = p->b->head; 
         leaf->head = j - p->s;
 
         internal->sdep= p->a->sdep + p->s;
-        leaf->sdep = *e - leaf-> head;
+        leaf->sdep = END;
 
         internal->slink = root; /* By default, any new internal node has its slink to root. This might change in future iterations*/ 
         if(lastNewNode != NULL){
@@ -288,44 +373,74 @@ void SuffixLink(point p, int i, int j){
     
     int travelSize; /* Number of chars we need to pass when walking up the edge to p->above*/
     char c;
-    int iterS; /* This will iterate Text i*/
-    int iterE; /* This will iterate the edges*/
-    iterE = 0;
+    int edgeLength;
+    edgeLength = 0;
+    int placedP;
+    placedP = 0;
+
     node next;
 
-    p->s--;
-    p->a = p->a->slink;
+    /* p->a pode nao ser a root
+        - passas para p->a->slink    
+    */
+    /* p->a for a root:
+        - p->s == 0 -> passas para p->a->slink
+        - p->s != 0 -> nao passas para p->a->slink
+    */
 
-    travelSize = p->s - p->a->sdep;
-    next = p->a->child;
+    if(p->s == 0){
+        p->a = p->a->slink;
+        p->b = NULL;
+        return;
+    }
 
+    else{
+        if (p->a->id != 0 ){
+            p->a = p->a->slink; 
+        }
+        p->s--;
+        travelSize = p->s - p->a->sdep ;
+        next = p->a->child;
+        p->b = NULL; /* By default*/
 
-    /*Going down the tree to place p in its right place*/
-    while(next != NULL){
-        for (iterS = j-travelSize; iterS<j; iterS++){
+        /*Going down the tree to place p in its right place*/
+        while((placedP == 0) && (next != NULL)){
+            printf("next->head=%d, p->a->sdep=%d\n",next==NULL? -1 : next->head , p->a==NULL? -1 : p->a->sdep );
+            printf("\t\tEdge char = %c.", Ti[i][next->head + p->a->sdep]);
+            printf(" Text char = %c\n", Ti[i][j - travelSize]);
+            if(Ti[i][next->head + p->a->sdep] == Ti[i][j - travelSize]){ /* If chars match*/
 
-            c = Ti[i][ next->head + p->a->sdep + iterE]; /*Edge - char being evaluated*/
-            if(c != Ti[i][iterS]){
-                iterE = 0;
-                break;
+                if(next->sdep == -1){
+                    edgeLength = (e - next->head) - p->a->sdep;
+                }
+                else{
+                    edgeLength = next->sdep - p->a->sdep;
+                }
+                
+                if(edgeLength <= travelSize){
+                    travelSize = travelSize -edgeLength;
+                    p->a = next;
+                    next = next->child;
+                    if(travelSize == 0){
+                        placedP = 1;
+                    }
+                }
+                else{
+                    placedP =1;
+                    p->b = next;
+                }
             }
             else{
-                iterE++;
-            }
+                next = next->brother; 
+            }     
         }
-        next = next->brother;
+        printf("\t\tp->a->id = %d\n", p->a->id);
+        printf("\t\tp->b->id = %d\n", p->b== NULL? -1: p->b->id);
+        printf("\t\tp->s = %d\n", p->s);
     }
+
 }
 
-
-void setNode(node n, int Ti, int head, int sdep, node child, node brother, node slink, node* hook){
-    n->Ti = Ti;
-    n->head = head;
-    n->sdep = sdep;
-    n->child = child;
-    n->brother = brother;
-    n->hook = hook;
-}
 
 void printTree(node root){
     /*---- Initializing the visited list for DFS --------*/
@@ -337,7 +452,7 @@ void printTree(node root){
 
     printf("digraph g {\n");
     DFS(visited, root);
-    printf("}");
+    printf("}\n");
 }
 
 void DFS(int* visited, node root){
@@ -345,15 +460,27 @@ void DFS(int* visited, node root){
     visited[root->id] = 1;
     node node_visited = root;
     node next;
-    
-    if (node_visited->child !=NULL){
-        printf("\t%d -> %d [label=\"%s\"]\n", node_visited->id, node_visited->child->id, "edge label");
-        DFS(visited, node_visited->child);
+    int i;
+    next = node_visited->child;
+
+    if(node_visited->brother !=NULL){
+        printf("\t%d -> %d [style=dotted]\n", node_visited->id, node_visited->brother->id);
     }
     
-    next = node_visited ->brother;
-    while (next != NULL){
-        printf("\t%d -> %d [label=\"%s\"]\n", node_visited->id, next->id, "edge label");
+    while(next!= NULL){
+
+        if(next->sdep == END){ 
+            next->sdep = ni[next->Ti] +1 - next->head;
+        }   
+
+        printf("\t%d -> %d [label=\"", node_visited->id, next->id);
+        
+        for(i= next->head + node_visited->sdep; i< next->head + next->sdep; i++){
+            printf("%c", Ti[next->Ti][i]); 
+        }
+        /*if (Ti[next->Ti][i] == '\0') printf("$");*/
+        printf("\"]\n");
+        
         DFS(visited, next);
         next = next->brother;
     }
