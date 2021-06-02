@@ -1,6 +1,6 @@
-CiFLAGS = -O3 -ansi -Wall -Wextra -Wshadow -Wcast-align -Wunused -Wpedantic -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
+CFLAGS =  -ansi -Wall -Wextra -Wshadow -Wcast-align -Wunused -Wpedantic -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
 
-CFLAGS += -fsanitize=address,leak
+#CFLAGS += -fsanitize=address,leak
 #CFLAGS += -fsanitize=thread
 #CFLAGS += -fsanitize=memory
 
