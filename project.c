@@ -41,7 +41,6 @@ struct point{
 
 /* ----------------------Global Variables--------------------- */
 
-int e;                          /* For implicit extensions*/ 
 char** Ti;                       /* List of all strings.*/
 int* ni;                         /* List of sizes of all strings*/
 node* nodes;                     /* List of all our nodes*/
@@ -66,39 +65,56 @@ void cleanUp(int k);
 int main(){
     
     /*Reading the input*/
-    int k;                          /*Number of strings*/
+    int k;                                                                  /* Number of strings*/
     int i = 0;
-    int m = 0;
-    int textSize = 0; 
-    node suffix_tree_root;
+    int m = 0;                                                              /* Text size*/
+    int textSize = 0;                                                       /* Sum of all text sizes m_i*/
+    node suffix_tree_root;                                                  /* The root of the suffix tree*/
     scanf("%d", &k);
-    Ti = (char**)malloc(sizeof(char*) * (unsigned long)k);                    /*List of all strings.*/
-    ni = (int*)malloc(sizeof(int) * (unsigned long)k);                      /*List of sizes of all strings*/
+    Ti = (char**)malloc(sizeof(char*) * (unsigned long)k);                  /* List of all strings.*/
+    if(Ti == NULL) exit(-1);
+    
+    ni = (int*)malloc(sizeof(int) * (unsigned long)k);                      /* List of sizes of all strings*/
+    if(ni == NULL) exit(-1);
 
     while(i < k){
-        scanf("%d", &m);            /*Size of string i*/
+        scanf("%d", &m);                                                    /*Size of string i*/
         ni[i] = m;
         Ti[i] = (char*)malloc(sizeof(char)* (unsigned long)(m+1));
-        scanf("%s", Ti[i]);             /*Actual string i*/
+        if(Ti[i] == NULL) exit(-1);
+        scanf("%s", Ti[i]);                                                 /*Actual string i*/
         i++;
         textSize += (m+1);
     }
 
     allocateNodeMemory(textSize);
-    numNodes = 0;
+    numNodes = 0;                                                            /* Number of nodes*/
     suffix_tree_root = Ukkonnen(k);
     printLCSS(suffix_tree_root, k);
 
     cleanUp(k);
     return 0;
 }
-
+/**
+ * allocateNodeMemory
+ * 
+ * Allocates the needed memory for the possible 2*textSize + 1 nodes of the tree.
+ * 
+*/
 void allocateNodeMemory(int textSize ){
     int maxNumNodes = 2*textSize +1;
     nodes = (node*)malloc(sizeof(node) * (unsigned long)maxNumNodes);
-
+    if(nodes == NULL) exit(-1);
 }
 
+/**
+ * cleanUp
+ * 
+ * Frees all used memory:
+ *  - All strings in Ti
+ *  - String size array ni
+ *  - All nodes
+*/
 void cleanUp(int numStrings){
     /* Free memory occupied by strings*/
     int i;
@@ -118,6 +134,15 @@ void cleanUp(int numStrings){
     free(nodes);
 }
 
+/**
+ * Ukkonnen
+ * 
+ * Executes the Ukkonnen algorithm
+ * 
+ * Receives the number of strings, k
+ * 
+ * Returns the suffix tree root
+*/
 node Ukkonnen(int k){
     node root; 
     node sentinel; 
@@ -126,16 +151,18 @@ node Ukkonnen(int k){
     int j = 0;
     int i = 0;
 
-    /* Initializing sentinel*/
-    sentinel = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    /* Initializing sentinel node*/
+    sentinel = (node)malloc(sizeof(struct node));  
+    if(sentinel == NULL) exit(-1);
     sentinel ->id = -1;
     sentinel ->slink = NULL;
     sentinel ->head = -1;
     sentinel ->sdep = -1;
 
 
-    /* Initializing root*/
-    root = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    /* Initializing root node*/
+    root = (node)malloc(sizeof(struct node));  
+    if(root == NULL) exit(-1);
     nodes[numNodes] = root;
     root ->id = 0;
     root ->slink = sentinel;
@@ -150,51 +177,61 @@ node Ukkonnen(int k){
     
     /* Initializing point*/
     p = (point)malloc(sizeof(struct point));
+    if(p == NULL) exit(-1);
     p->a = root;
     p->s = 0;
     p->b = NULL;
 
-    while(i < k){
+    while(i < k){                           /* Iterates through all k strings*/
         Ti[i][ni[i]] = '&';      
         j = 0;
-        e = 0;
 
-        while(j <= ni[i]){
-            lastNewNode = NULL;          
+        while(j <= ni[i]){                  /* Iterates through all j Phases*/
+            lastNewNode = NULL;             /* At each phase we clean the lastNewNode*/
             while(!DescendQ(p, i, j)){
                 AddLeaf(root, p, i, j);
-                fflush(stdout);
                 SuffixLink(p,i,j);
-                fflush(stdout);
             }
             Descend(p, i, j);
-            fflush(stdout);
             j++;
-            e++;
         }
 
         Ti[i][ni[i]] = '$';
         i++;
     } 
     
-    /*printTree(root);*/
+    /*printTree(root); < This was used for debugging*/
     free(sentinel);
     free(p);
     return root;   
 }
 
+/**
+ * DescendQ
+ * 
+ * Receives a point p and a char c position (i, j)
+ * 
+ * Returns: 
+ *  - 1 (true) if we can descend from point p with char c
+ *  - 0 (false), otherwise
+*/
 int DescendQ(point p, int i, int j){
     char newChar;
     char edgeChar;
     int edgePos;
     newChar = Ti[i][j];
     
-    /* Case 1) We're at the sentinel node*/
+    /* Case 1) We're at the sentinel node
+        - We can always descend from the sentinel node
+    */
     if(p->a->id == -1){
         return 1;
     }
 
-    /* Case 2) We're in a edge*/
+    /* Case 2) We're in a edge 
+        - If p->b is null, we cannot descend
+        - If not, we check if the char pointed from p is the same as T[i][j]
+    */
     if( p->s > p->a->sdep){
         if(p->b == NULL){
             return 0;
@@ -213,7 +250,8 @@ int DescendQ(point p, int i, int j){
     }
 
     /* Case 3) We're in a internal node
-        - We need to try all possible edges, traversing p->a->child and so on*/
+        - We need to try all possible edges, and see if we can descend from any of them
+    */
     else{
         node next;
         next = p->a->child;
@@ -233,21 +271,33 @@ int DescendQ(point p, int i, int j){
     return 0;
 }
 
-void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
+/**
+ * DescendQ
+ * 
+ * Receives a point p and a char c position (i, j)
+ * 
+ * Descends the tree, placing point p in correct position
+*/
+void Descend(point p, int i, int j){ 
     char newChar;
     char edgeChar;
     int edgePos;
     newChar = Ti[i][j];
 
-    /* Case 1) We're in the sentinel/root */
+    /* Case 1) We're in the sentinel/root 
+        - We want p->a to be the root
+    */
     if(p->a->id == -1){
-        p->a = p->a->child; /* We want p to point to the root, and then go to Case 3)*/
+        p->a = p->a->child;  /* The root*/
         p->s = 0;
         p->b = NULL;
         return;
     }
     
-    /* Case 2) We're in a edge*/
+    /* Case 2) We're in a edge
+        - We increase p->s
+        - If this puts us at the end of the edge, we descend to the node bellow
+    */
     if( (p->s > p->a->sdep) ){
         p->s ++;
         if(p->s == p->b->sdep){
@@ -257,7 +307,8 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
     }
 
     /* Case 3) We're in a internal node
-        - We need to try all possible edges, traversing p->a->child and so on*/
+        - We need to try all possible edges to figure out through which edge we should descend
+    */
     else{
         node next;
         next = p->a->child;
@@ -282,14 +333,17 @@ void Descend(point p, int i, int j){ /* TODO: Add case of the sentinel */
     }    
 }
 
-/*  
-    Creates a new leaf and inserts it into the tree
-    It might also be necessary to create a new internal node.
+/**
+ * AddLeaf
+ * 
+ * Creates a new leaf node and inserts it into the tree.
+ * It might also be necessary to create a new internal node.
 */
 void AddLeaf(node root, point p, int i, int j){
     /* Our new leaf node*/
     node leaf; 
-    leaf = (node)malloc(sizeof(struct node));  /*TODO: check if malloc returns null*/
+    leaf = (node)malloc(sizeof(struct node));  
+    if(leaf == NULL) exit(-1);
     nodes[numNodes] = leaf;
     leaf->id = numNodes;
     numNodes ++;
@@ -300,7 +354,7 @@ void AddLeaf(node root, point p, int i, int j){
     leaf->Ti = i; 
 
 
-   /* Case 1) Need to add only a leaf */
+   /* Case 1) Need to add only a leaf node*/
    if( (p->s == p->a->sdep) || (p->b == NULL)){
        
         node next;
@@ -328,10 +382,11 @@ void AddLeaf(node root, point p, int i, int j){
    }
     
 
-   /* Case 2) Need to add internal node*/
+    /* Case 2) We also need to add a new internal node*/
     else{
         node internal; /* Our internal node*/
-        internal = (node)malloc(sizeof(struct node)); /*TODO: check if malloc returns null*/
+        internal = (node)malloc(sizeof(struct node)); 
+        if(internal == NULL) exit(-1);
         nodes[numNodes] = internal;
         internal->id = numNodes;
         internal->Ti = p->b->Ti;
@@ -357,10 +412,13 @@ void AddLeaf(node root, point p, int i, int j){
         internal->sdep= p->s ;
         leaf->sdep = END;
 
-        internal->slink = root; /* By default, any new internal node has its slink to root. This might change in future iterations*/ 
+        /* By default, a new internal node has its slink to root. This might change in future iterations*/ 
+        internal->slink = root; 
         if(lastNewNode != NULL){
             lastNewNode->slink = internal;
         }
+
+        /* A new internal node with string depth of 1 will forever have its suffix link as the root.*/
         if(internal->sdep != 1){
             lastNewNode = internal;
         }
@@ -371,6 +429,11 @@ void AddLeaf(node root, point p, int i, int j){
     }
 }
 
+/**
+ * SuffixLink
+ * 
+ * Places point p in the right position after AddLeaf
+*/
 void SuffixLink(point p, int i, int j){
     int travelSize; /* Number of chars we need to pass when walking up the edge to p->above*/
     int edgeLength;
@@ -380,14 +443,21 @@ void SuffixLink(point p, int i, int j){
     edgeLength = 0;
     placedP = 0;
 
-
+    /* Case 1) p->s is 0 - there are no remaining chars to consider
+        - We simply travel to p->a's suffix link and set p->b to NULL
+    */
     if(p->s == 0){
         p->a = p->a->slink;
         p->b = NULL;
         return;
     }
 
+    /* Case 2) There are remaining chars to consider*/
     else{
+
+        /*  If we're at the root we want to start looking from there. 
+            Otherwise, we travel to p->a's suffix link
+        */
         if (p->a->id != 0)
             p->a = p->a->slink; 
         
@@ -398,10 +468,11 @@ void SuffixLink(point p, int i, int j){
 
         /*Going down the tree to place p in its right place*/
         while((placedP == 0) && (next != NULL)){        
+            
+            /* Checking to see if chars match*/
+            if((ni[next->Ti] >= next->head + p->a->sdep) && (Ti[next->Ti][next->head + p->a->sdep] == Ti[i][j - travelSize])){ 
 
-            if((ni[next->Ti] >= next->head + p->a->sdep) && (Ti[next->Ti][next->head + p->a->sdep] == Ti[i][j - travelSize])){ /* If chars match*/
-
-                if(next->sdep == -1){
+                if(next->sdep == -1){ /* When we reach a leaf, we should stop*/
                     p->b = next;
                     break;
                 }
@@ -431,11 +502,18 @@ void SuffixLink(point p, int i, int j){
 
 }
 
+/**
+ * printTree
+ * 
+ * A debug function that prints the generated suffix tree to a 'tree.gv' file in .dot format
+*/
 void printTree(node root){
     /*---- Initializing the visited list for DFS --------*/
-    int* visited = (int*)malloc(sizeof(int) * (unsigned long)numNodes);
     int i;
     FILE* f;
+
+    int* visited = (int*)malloc(sizeof(int) * (unsigned long)numNodes);
+    if(visited == NULL) exit(-1);
 
     for(i=0; i<numNodes; i++){
         visited[i] = 0;
@@ -449,6 +527,12 @@ void printTree(node root){
     free(visited);
 }
 
+/**
+ * printingDFS
+ * 
+ * An auxiliary function to printTree
+ * Does a DFS search and prints the nodes in .dot format
+*/
 void printingDFS(FILE *f, int* visited, node root){
 
     node node_visited = root;
@@ -488,6 +572,61 @@ void printingDFS(FILE *f, int* visited, node root){
     }
 }
 
+/**
+ * printLCSS
+ * 
+ * Finds the Longest Common Substring between d strings, for 1 < d <= k
+*/
+void printLCSS(node root, int k){
+    int i;
+    int d;
+    node n;
+
+    int* visited = (int*)malloc(sizeof(int) * (unsigned long)numNodes);
+    int *LCSS = (int*)malloc(sizeof(int)* (unsigned long)k);
+    if((visited == NULL) || (LCSS == NULL)) exit(-1);
+    
+    /* LCSS array initialization*/
+    for(d=0; d<k; d++){
+        LCSS[d] = 0;
+    }
+    
+    /* Visisted list initialization (for DFS)*/
+    for(i=0; i<numNodes; i++){
+        visited[i] = 0;
+    }
+
+    DFS(visited, root, k);
+    free(root->childrenSuffixes);
+
+    /* Finding LCCS between d nodes*/
+    d = 1;
+    for(i= 0; i<numNodes; i++){
+        n = nodes[i];
+        if( LCSS[n->numSuffixes - 1] < n->sdep){
+            LCSS[n->numSuffixes - 1] = n->sdep;
+        }    
+    }
+    /* A backward traversal to adjust the previous calculated values*/
+    for(i=k-1; i>0; i--){
+        if(LCSS[i] > LCSS[i-1]) LCSS[i-1] = LCSS[i];
+    }
+
+    for(i = 1; i<k; i++){
+        printf("%d ", LCSS[i]);
+    }
+    printf("\n");
+
+    free(visited);
+    free(LCSS);
+}
+
+/**
+ * DFS (Depth First Search)
+ * 
+ * Recursive DFS function.
+ * Aditionally, this function saves the node's number of suffixes by mergind its children's suffixes.
+*/
 void DFS(int* visited, node root, int k){
     node node_visited = root;
     node next;
@@ -508,6 +647,8 @@ void DFS(int* visited, node root, int k){
     /*Children Suffix Lists Merge*/
     if(node_visited->sdep !=END){ /* Leafs don't need to allocate a list - they'll only belong to one string*/
         node_visited->childrenSuffixes = (int*)malloc(sizeof(int)* (unsigned long)k);
+        if( node_visited->childrenSuffixes == NULL) exit(-1);
+        
         node_visited->numSuffixes = 0;
         for(i=0; i<k;i++){
             node_visited->childrenSuffixes[i] = 0;
@@ -535,44 +676,4 @@ void DFS(int* visited, node root, int k){
         }
     }
     else node_visited->numSuffixes = 1;  /* A leaf will always only belong to one suffix.*/
-}
-
-void printLCSS(node root, int k){
-    int* visited = (int*)malloc(sizeof(int) * (unsigned long)numNodes);
-    int i;
-    int d;
-    int *LCSS = (int*)malloc(sizeof(int)* (unsigned long)k);
-    node n;
-    
-    for(d=0; d<k; d++){
-        LCSS[d] = 0;
-    }
-    
-    for(i=0; i<numNodes; i++){
-        visited[i] = 0;
-    }
-
-    DFS(visited, root, k);
-    free(root->childrenSuffixes);
-
-    /* Finding LCCS between d nodes*/
-    d = 1;
-    for(i= 0; i<numNodes; i++){
-        n = nodes[i];
-        if( LCSS[n->numSuffixes - 1] < n->sdep){
-            LCSS[n->numSuffixes - 1] = n->sdep;
-        }    
-    }
-
-    for(i=k-1; i>0; i--){
-        if(LCSS[i] > LCSS[i-1]) LCSS[i-1] = LCSS[i];
-    }
-
-    for(i = 1; i<k; i++){
-        printf("%d ", LCSS[i]);
-    }
-    printf("\n");
-
-    free(visited);
-    free(LCSS);
 }
